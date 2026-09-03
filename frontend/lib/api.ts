@@ -37,3 +37,31 @@ export async function uploadRecording(zorgmomentId: string, audioBlob: Blob) {
   }
   return body;
 }
+
+export interface ExtractionDraft {
+  actual_care_summary: string;
+  deviation_detected: boolean;
+  deviation_reason: string | null;
+  mood_observation: string;
+  mood_changed: boolean;
+  behaviour_observation: string;
+  behaviour_changed: boolean;
+}
+
+export async function extractZorgmoment(zorgmomentId: string): Promise<{ extraction_json: ExtractionDraft }> {
+  const res = await fetch(`${API_URL}/zorgmomenten/${zorgmomentId}/extract`, { method: "POST" });
+  const body = await res.json();
+  // Flat JSONResponse body, same reasoning as uploadRecording above.
+  if (!res.ok) throw new Error(body.message || "Extractie mislukt.");
+  return body;
+}
+
+export async function saveZorgmoment(zorgmomentId: string, draft: ExtractionDraft, reviewedBy: string) {
+  const res = await fetch(`${API_URL}/zorgmomenten/${zorgmomentId}/save`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...draft, reviewed_by: reviewedBy }),
+  });
+  if (!res.ok) throw new Error("Opslaan mislukt.");
+  return res.json();
+}
