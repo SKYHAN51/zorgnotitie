@@ -1,5 +1,6 @@
 # backend/app/routes/zorgmomenten.py
 import uuid
+from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -7,6 +8,8 @@ from app.db import get_client
 from app.stt import transcribe, TranscriptionError
 from app.extraction import extract, ExtractionError
 from app.events import log_event
+from app.alerts import determine_alerts
+from app.schemas import ExtractionDraft
 
 router = APIRouter()
 
@@ -97,3 +100,59 @@ def extract_zorgmoment(zorgmoment_id: str):
         "extraction_json": extraction_json,
     }).eq("id", zorgmoment_id).execute()
     return {"id": zorgmoment_id, "review_status": "needs_review", "extraction_json": extraction_json}
+
+
+class SaveZorgmomentRequest(BaseModel):
+    actual_care_summary: str
+    deviation_detected: bool
+    deviation_reason: Optional[str] = None
+    mood_observation: str
+    mood_changed: bool
+    behaviour_observation: str
+    behaviour_changed: bool
+    reviewed_by: str
+
+
+@router.post("/zorgmomenten/{zorgmoment_id}/save")
+def save_zorgmoment(zorgmoment_id: str, body: SaveZorgmomentRequest):
+    client = get_client()
+    existing = client.table("zorgmomenten").execute().data
+    row = next((r for r in existing if r.get("id") == zorgmoment_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Zorgmoment niet gevonden.")
+    if row.get("review_status") != "needs_review":
+        raise HTTPException(status_code=409, detail="Dit zorgmoment is niet klaar om op te slaan.")
+
+    before_json = row.get("extraction_json")
+    after_json = body.model_dump()
+
+    # This is the ONLY place final fields are written — always from the
+    # human-approved request body, never copied from extraction_json.
+    client.table("zorgmomenten").update({
+        "review_status": "reviewed",
+        **after_json,
+    }).eq("id", zorgmoment_id).execute()
+
+    client.table("audit_log").insert({
+        "zorgmoment_id": zorgmoment_id,
+        "actor_type": "human",
+        "event_type": "review_saved",
+        "before_json": before_json,
+        "after_json": after_json,
+    }).execute()
+
+    draft = ExtractionDraft(**after_json_without_reviewer(after_json))
+    for alert in determine_alerts(draft):
+        client.table("alerts").insert({
+            "zorgmoment_id": zorgmoment_id,
+            "alert_type": alert["alert_type"],
+            "reason": alert["reason"],
+        }).execute()
+
+    return {"id": zorgmoment_id, "review_status": "reviewed"}
+
+
+def after_json_without_reviewer(after_json: dict) -> dict:
+    """ExtractionDraft doesn't have a reviewed_by field — strip it before
+    constructing the draft used for alert determination."""
+    return {k: v for k, v in after_json.items() if k != "reviewed_by"}
