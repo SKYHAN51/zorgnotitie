@@ -62,7 +62,7 @@ export default function OpnemenPage() {
     return <main className="max-w-xl mx-auto p-6">Cliënten laden…</main>;
   }
 
-  if (errorMessage) {
+  if (errorMessage && !selectedClient) {
     return <main className="max-w-xl mx-auto p-6 text-red-700">{errorMessage}</main>;
   }
 
