@@ -11,6 +11,7 @@ export default function OpnemenPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [zorgmomentId, setZorgmomentId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -20,7 +21,8 @@ export default function OpnemenPage() {
         setClients(data);
         setSelectedClient(data[0] ?? null);
       })
-      .catch((err) => setErrorMessage(err instanceof Error ? err.message : "Onbekende fout."));
+      .catch((err) => setErrorMessage(err instanceof Error ? err.message : "Onbekende fout."))
+      .finally(() => setLoading(false));
   }, []);
 
   async function startRecording() {
@@ -56,8 +58,20 @@ export default function OpnemenPage() {
     };
   }
 
+  if (loading) {
+    return <main className="max-w-xl mx-auto p-6">Cliënten laden…</main>;
+  }
+
+  if (errorMessage) {
+    return <main className="max-w-xl mx-auto p-6 text-red-700">{errorMessage}</main>;
+  }
+
+  if (!selectedClient && clients.length === 0) {
+    return <main className="max-w-xl mx-auto p-6 text-slate-600">Geen cliënten beschikbaar.</main>;
+  }
+
   if (!selectedClient) {
-    return <main className="max-w-xl mx-auto p-6">{errorMessage || "Cliënten laden…"}</main>;
+    return <main className="max-w-xl mx-auto p-6">Cliënten laden…</main>;
   }
 
   return (
