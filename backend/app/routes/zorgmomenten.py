@@ -1,10 +1,11 @@
 # backend/app/routes/zorgmomenten.py
 import uuid
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.db import get_client
 from app.stt import transcribe, TranscriptionError
+from app.extraction import extract, ExtractionError
 from app.events import log_event
 
 router = APIRouter()
@@ -65,3 +66,34 @@ async def record_audio(zorgmoment_id: str, audio: UploadFile = File(...)):
 def list_demo_clients():
     client = get_client()
     return client.table("demo_clients").execute().data
+
+
+@router.post("/zorgmomenten/{zorgmoment_id}/extract")
+def extract_zorgmoment(zorgmoment_id: str):
+    client = get_client()
+    existing = client.table("zorgmomenten").execute().data
+    row = next((r for r in existing if r.get("id") == zorgmoment_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Zorgmoment niet gevonden.")
+
+    log_event(client, zorgmoment_id, "extraction", "started")
+    try:
+        draft = extract(row["transcript"], row["planned_care_summary"])
+    except ExtractionError as exc:
+        log_event(client, zorgmoment_id, "extraction", "failed",
+                   error_code="extraction_failed", error_message_safe=str(exc))
+        client.table("zorgmomenten").update({
+            "review_status": "failed",
+        }).eq("id", zorgmoment_id).execute()
+        return JSONResponse(status_code=422, content={
+            "review_status": "failed",
+            "message": "Kon geen gestructureerd concept maken. Probeer het opnieuw.",
+        })
+
+    log_event(client, zorgmoment_id, "extraction", "succeeded")
+    extraction_json = draft.model_dump()
+    client.table("zorgmomenten").update({
+        "review_status": "needs_review",
+        "extraction_json": extraction_json,
+    }).eq("id", zorgmoment_id).execute()
+    return {"id": zorgmoment_id, "review_status": "needs_review", "extraction_json": extraction_json}
