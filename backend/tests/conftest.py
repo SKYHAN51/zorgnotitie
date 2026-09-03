@@ -1,4 +1,11 @@
 import pytest
+import os
+
+
+# Set up minimal environment variables for tests
+os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "fake-key")
+os.environ.setdefault("OPENAI_API_KEY", "sk-fake-test-key")
 
 
 class FakeTable:
