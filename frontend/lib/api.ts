@@ -65,3 +65,21 @@ export async function saveZorgmoment(zorgmomentId: string, draft: ExtractionDraf
   if (!res.ok) throw new Error("Opslaan mislukt.");
   return res.json();
 }
+
+export async function listReviewedZorgmomenten() {
+  const res = await fetch(`${API_URL}/dashboard/zorgmomenten`);
+  if (!res.ok) throw new Error("Kon overzicht niet laden.");
+  return res.json();
+}
+
+export async function getZorgmomentDetail(id: string) {
+  const res = await fetch(`${API_URL}/dashboard/zorgmomenten/${id}`);
+  if (!res.ok) throw new Error("Kon detail niet laden.");
+  return res.json();
+}
+
+export async function listOpenAlerts() {
+  const res = await fetch(`${API_URL}/dashboard/alerts?status=open`);
+  if (!res.ok) throw new Error("Kon aandachtspunten niet laden.");
+  return res.json();
+}
