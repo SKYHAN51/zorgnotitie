@@ -89,3 +89,23 @@ def test_save_when_caregiver_clears_a_flagged_field_creates_no_alert_for_it(fake
         })
     alert_rows = fake_supabase.table("alerts").execute().data
     assert alert_rows == []
+
+
+def test_resaving_an_already_reviewed_zorgmoment_is_rejected(fake_supabase):
+    """A zorgmoment can only move from needs_review -> reviewed once.
+    This prevents duplicate alerts if a caregiver double-clicks Save or
+    the client retries a slow request."""
+    fake_supabase.table("zorgmomenten").insert({
+        "id": "zm-1", "review_status": "reviewed",
+    }).execute()
+    with patch("app.routes.zorgmomenten.get_client", return_value=fake_supabase):
+        response = client.post("/zorgmomenten/zm-1/save", json={
+            "actual_care_summary": "iets",
+            "deviation_detected": True, "deviation_reason": "reden",
+            "mood_observation": "stemming", "mood_changed": True,
+            "behaviour_observation": "gedrag", "behaviour_changed": True,
+            "reviewed_by": "demo-zorgmedewerker",
+        })
+    assert response.status_code == 409
+    alert_rows = fake_supabase.table("alerts").execute().data
+    assert alert_rows == []
