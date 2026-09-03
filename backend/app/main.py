@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.zorgmomenten import router as zorgmomenten_router
+from app.routes.dashboard import router as dashboard_router
 
 app = FastAPI(title="ZorgNotitie API")
 
@@ -13,6 +14,7 @@ app.add_middleware(
 )
 
 app.include_router(zorgmomenten_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health")
