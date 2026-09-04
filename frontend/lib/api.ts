@@ -1,5 +1,14 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// Shared-secret gate, not real per-user auth (no accounts in this demo) —
+// stops opportunistic bots/scanners from hitting the public backend URL
+// and running up real OpenAI charges. Necessarily visible in this
+// browser-side bundle; per-IP rate limiting on the backend is the actual
+// cost backstop against anyone who reads it out and calls the API directly.
+const DEMO_SECRET_HEADERS = {
+  "X-Demo-Secret": process.env.NEXT_PUBLIC_DEMO_API_SECRET || "",
+};
+
 export interface DemoClient {
   id: string;
   display_name: string;
@@ -7,7 +16,7 @@ export interface DemoClient {
 }
 
 export async function listDemoClients(): Promise<DemoClient[]> {
-  const res = await fetch(`${API_URL}/demo-clients`);
+  const res = await fetch(`${API_URL}/demo-clients`, { headers: DEMO_SECRET_HEADERS });
   if (!res.ok) throw new Error("Kon cliëntenlijst niet laden.");
   return res.json();
 }
@@ -15,7 +24,7 @@ export async function listDemoClients(): Promise<DemoClient[]> {
 export async function createZorgmoment(demoClientId: string, plannedCareSummary: string) {
   const res = await fetch(`${API_URL}/zorgmomenten`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...DEMO_SECRET_HEADERS },
     body: JSON.stringify({ demo_client_id: demoClientId, planned_care_summary: plannedCareSummary }),
   });
   if (!res.ok) throw new Error("Kon zorgmoment niet aanmaken.");
@@ -27,6 +36,7 @@ export async function uploadRecording(zorgmomentId: string, audioBlob: Blob) {
   formData.append("audio", audioBlob, "note.webm");
   const res = await fetch(`${API_URL}/zorgmomenten/${zorgmomentId}/record`, {
     method: "POST",
+    headers: DEMO_SECRET_HEADERS,
     body: formData,
   });
   const body = await res.json();
@@ -51,7 +61,10 @@ export interface ExtractionDraft {
 export async function extractZorgmoment(
   zorgmomentId: string
 ): Promise<{ extraction_json: ExtractionDraft; transcript: string }> {
-  const res = await fetch(`${API_URL}/zorgmomenten/${zorgmomentId}/extract`, { method: "POST" });
+  const res = await fetch(`${API_URL}/zorgmomenten/${zorgmomentId}/extract`, {
+    method: "POST",
+    headers: DEMO_SECRET_HEADERS,
+  });
   const body = await res.json();
   // Flat JSONResponse body, same reasoning as uploadRecording above.
   if (!res.ok) throw new Error(body.message || "Extractie mislukt.");
@@ -61,7 +74,7 @@ export async function extractZorgmoment(
 export async function saveZorgmoment(zorgmomentId: string, draft: ExtractionDraft, reviewedBy: string) {
   const res = await fetch(`${API_URL}/zorgmomenten/${zorgmomentId}/save`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...DEMO_SECRET_HEADERS },
     body: JSON.stringify({ ...draft, reviewed_by: reviewedBy }),
   });
   if (!res.ok) {
@@ -79,19 +92,19 @@ export async function saveZorgmoment(zorgmomentId: string, draft: ExtractionDraf
 }
 
 export async function listReviewedZorgmomenten() {
-  const res = await fetch(`${API_URL}/dashboard/zorgmomenten`);
+  const res = await fetch(`${API_URL}/dashboard/zorgmomenten`, { headers: DEMO_SECRET_HEADERS });
   if (!res.ok) throw new Error("Kon overzicht niet laden.");
   return res.json();
 }
 
 export async function getZorgmomentDetail(id: string) {
-  const res = await fetch(`${API_URL}/dashboard/zorgmomenten/${id}`);
+  const res = await fetch(`${API_URL}/dashboard/zorgmomenten/${id}`, { headers: DEMO_SECRET_HEADERS });
   if (!res.ok) throw new Error("Kon detail niet laden.");
   return res.json();
 }
 
 export async function listOpenAlerts() {
-  const res = await fetch(`${API_URL}/dashboard/alerts?status=open`);
+  const res = await fetch(`${API_URL}/dashboard/alerts?status=open`, { headers: DEMO_SECRET_HEADERS });
   if (!res.ok) throw new Error("Kon aandachtspunten niet laden.");
   return res.json();
 }

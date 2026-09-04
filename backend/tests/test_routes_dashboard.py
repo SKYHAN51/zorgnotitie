@@ -2,8 +2,9 @@
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from app.main import app
+from tests.conftest import TEST_AUTH_HEADERS
 
-client = TestClient(app)
+client = TestClient(app, headers=TEST_AUTH_HEADERS)
 
 
 def test_dashboard_list_excludes_unreviewed_rows(fake_supabase):

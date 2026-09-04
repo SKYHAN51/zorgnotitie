@@ -1,10 +1,11 @@
 # backend/app/routes/zorgmomenten.py
 import uuid
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, Request, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.db import get_client
+from app.rate_limit import limiter
 from app.stt import transcribe, TranscriptionError
 from app.extraction import extract, ExtractionError
 from app.events import log_event
@@ -75,7 +76,8 @@ def create_zorgmoment(body: CreateZorgmomentRequest):
 
 
 @router.post("/zorgmomenten/{zorgmoment_id}/record")
-async def record_audio(zorgmoment_id: str, audio: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def record_audio(request: Request, zorgmoment_id: str, audio: UploadFile = File(...)):
     client = get_client()
     # Any status is eligible to record onto (a fresh zorgmoment always is) —
     # this call only exists to 404 on an unknown id rather than silently
@@ -128,7 +130,8 @@ def list_demo_clients():
 
 
 @router.post("/zorgmomenten/{zorgmoment_id}/extract")
-def extract_zorgmoment(zorgmoment_id: str):
+@limiter.limit("10/minute")
+def extract_zorgmoment(request: Request, zorgmoment_id: str):
     client = get_client()
     row = _load_zorgmoment_or_404(client, zorgmoment_id)
     _require(

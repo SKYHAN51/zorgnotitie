@@ -3,8 +3,9 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.routes.zorgmomenten import MAX_AUDIO_BYTES
+from tests.conftest import TEST_AUTH_HEADERS
 
-client = TestClient(app)
+client = TestClient(app, headers=TEST_AUTH_HEADERS)
 
 
 def test_create_zorgmoment_returns_id_and_processing_status(fake_supabase):
@@ -93,6 +94,8 @@ def test_record_rejects_oversized_audio_upload(fake_supabase):
     read into memory. Uses a mocked UploadFile so the test doesn't need to
     actually construct a >10MB payload."""
     import asyncio
+    from starlette.requests import Request
+    from app.main import app as fastapi_app
     from app.routes.zorgmomenten import record_audio
 
     fake_supabase.table("zorgmomenten").insert({
@@ -104,11 +107,43 @@ def test_record_rejects_oversized_audio_upload(fake_supabase):
     fake_audio.content_type = "audio/webm"
     fake_audio.filename = "note.webm"
 
+    # Calling the route function directly (not through TestClient) bypasses
+    # FastAPI's request injection, but the @limiter.limit decorator still
+    # needs a real Request to read the client IP from — a minimal ASGI
+    # scope is enough, no actual connection required.
+    fake_request = Request({
+        "type": "http", "method": "POST", "path": "/zorgmomenten/zm-1/record",
+        "client": ("testclient", 1), "headers": [], "app": fastapi_app,
+    })
+
     with patch("app.routes.zorgmomenten.get_client", return_value=fake_supabase):
-        response = asyncio.run(record_audio("zm-1", fake_audio))
+        response = asyncio.run(record_audio(fake_request, "zm-1", fake_audio))
 
     assert response.status_code == 413
     fake_audio.read.assert_not_called()
+
+
+def test_record_endpoint_rate_limited_after_ten_calls_per_minute(fake_supabase):
+    """/record spends real OpenAI Whisper credits per call — a per-IP cap
+    protects against a bot or misbehaving client running up charges."""
+    with patch("app.routes.zorgmomenten.get_client", return_value=fake_supabase), \
+         patch("app.routes.zorgmomenten.transcribe", return_value="Testnotitie."):
+        create_resp = client.post("/zorgmomenten", json={
+            "demo_client_id": "client-1",
+            "planned_care_summary": "Ochtendzorg.",
+        })
+        zm_id = create_resp.json()["id"]
+
+        responses = [
+            client.post(
+                f"/zorgmomenten/{zm_id}/record",
+                files={"audio": ("note.webm", b"fake-bytes", "audio/webm")},
+            )
+            for _ in range(11)
+        ]
+
+    assert [r.status_code for r in responses[:10]] == [200] * 10
+    assert responses[10].status_code == 429
 
 
 def test_list_demo_clients_returns_seeded_rows(fake_supabase):

@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
     openai_api_key: str
+    demo_api_secret: str
 
     class Config:
         env_file = ".env"

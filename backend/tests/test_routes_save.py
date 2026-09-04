@@ -2,8 +2,9 @@
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from app.main import app
+from tests.conftest import TEST_AUTH_HEADERS
 
-client = TestClient(app)
+client = TestClient(app, headers=TEST_AUTH_HEADERS)
 
 
 def _seed_needs_review_zorgmoment(fake_supabase, **extraction_overrides):

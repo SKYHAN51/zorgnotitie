@@ -6,6 +6,13 @@ import os
 os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "fake-key")
 os.environ.setdefault("OPENAI_API_KEY", "sk-fake-test-key")
+os.environ.setdefault("DEMO_API_SECRET", "test-demo-secret")
+
+# Shared by every test module that builds a TestClient — matches the
+# DEMO_API_SECRET env var above, so requests through it pass the shared-
+# secret dependency by default. Import this instead of hardcoding the
+# string a second time.
+TEST_AUTH_HEADERS = {"X-Demo-Secret": "test-demo-secret"}
 
 
 class FakeTable:
@@ -87,3 +94,15 @@ class FakeSupabaseClient:
 @pytest.fixture
 def fake_supabase():
     return FakeSupabaseClient()
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """The rate limiter's in-memory counters live on the single app
+    instance every test file imports — without a reset, request counts
+    accumulate across the whole test session and a strict per-route limit
+    (e.g. /record's 10/minute) could trip from unrelated tests' traffic,
+    not the test actually exercising it."""
+    from app.main import app
+    app.state.limiter._storage.reset()
+    yield

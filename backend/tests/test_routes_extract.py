@@ -3,8 +3,9 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.schemas import ExtractionDraft
 from app.extraction import ExtractionError
+from tests.conftest import TEST_AUTH_HEADERS
 
-client = TestClient(app)
+client = TestClient(app, headers=TEST_AUTH_HEADERS)
 
 VALID_DRAFT = ExtractionDraft(
     actual_care_summary="Aankleden met extra hulp; douchen niet uitgevoerd.",
