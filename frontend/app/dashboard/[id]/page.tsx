@@ -3,7 +3,22 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getZorgmomentDetail } from "@/lib/api";
-import { Loader2, AlertCircle, AlertTriangle, CheckCircle2, History } from "lucide-react";
+import { Loader2, AlertCircle, AlertTriangle, CheckCircle2, History, ArrowRight } from "lucide-react";
+
+const AUDIT_FIELDS: { key: string; label: string; format?: (v: any) => string }[] = [
+  { key: "actual_care_summary", label: "Uitgevoerde zorg" },
+  { key: "deviation_detected", label: "Afwijking van planning", format: (v) => (v ? "Ja" : "Nee") },
+  { key: "deviation_reason", label: "Reden voor afwijking", format: (v) => v || "—" },
+  { key: "mood_observation", label: "Stemming" },
+  { key: "mood_changed", label: "Stemming afwijkend", format: (v) => (v ? "Ja" : "Nee") },
+  { key: "behaviour_observation", label: "Gedrag" },
+  { key: "behaviour_changed", label: "Gedrag afwijkend", format: (v) => (v ? "Ja" : "Nee") },
+];
+
+function formatValue(field: (typeof AUDIT_FIELDS)[number], raw: any): string {
+  if (raw === null || raw === undefined || raw === "") return field.format ? field.format(raw) : "—";
+  return field.format ? field.format(raw) : String(raw);
+}
 
 export default function ZorgmomentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -89,11 +104,34 @@ export default function ZorgmomentDetailPage() {
           Audit — AI-voorstel vs. definitieve versie
         </h2>
         {detail.audit_log?.map((entry: any) => (
-          <div key={entry.id} className="bg-cream-50 rounded-2xl p-4 mb-2.5 text-sm last:mb-0">
-            <p className="font-medium mb-1.5 text-stone-500 text-xs uppercase tracking-wide">AI-voorstel</p>
-            <pre className="bg-white rounded-xl p-3 overflow-x-auto text-xs">{JSON.stringify(entry.before_json, null, 2)}</pre>
-            <p className="font-medium mb-1.5 mt-3 text-stone-500 text-xs uppercase tracking-wide">Definitieve versie (mens)</p>
-            <pre className="bg-white rounded-xl p-3 overflow-x-auto text-xs">{JSON.stringify(entry.after_json, null, 2)}</pre>
+          <div key={entry.id} className="bg-cream-50 rounded-2xl p-4 mb-2.5 last:mb-0">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2 px-1">
+              <span></span>
+              <span>AI-voorstel</span>
+              <span>Definitieve versie</span>
+            </div>
+            <div className="space-y-1.5">
+              {AUDIT_FIELDS.map(({ key, ...field }) => {
+                const before = formatValue({ key, ...field }, entry.before_json?.[key]);
+                const after = formatValue({ key, ...field }, entry.after_json?.[key]);
+                const changed = before !== after;
+                return (
+                  <div
+                    key={key}
+                    className={`grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 items-start rounded-xl p-2.5 text-sm ${
+                      changed ? "bg-amber-50" : "bg-white"
+                    }`}
+                  >
+                    <span className="text-stone-500 text-xs pt-0.5">{field.label}</span>
+                    <span className="text-stone-600">{before}</span>
+                    <span className={`flex items-start gap-1 ${changed ? "text-amber-900 font-medium" : "text-stone-700"}`}>
+                      {changed && <ArrowRight size={13} className="mt-0.5 shrink-0 text-amber-500" />}
+                      {after}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </section>
