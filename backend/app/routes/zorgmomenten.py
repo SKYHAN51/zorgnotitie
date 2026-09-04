@@ -18,6 +18,18 @@ router = APIRouter()
 # rejecting anything clearly wrong (e.g. an accidental video upload).
 MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
+# Common wijkverpleging vocabulary — biases Whisper's recognition toward
+# these terms when they're actually spoken. Never used to alter or invent
+# transcript content, only to reduce misrecognition of known words.
+_CARE_VOCABULARY_HINT = (
+    "medicatie, wondverzorging, bloeddruk, stemming, wassen, aankleden, "
+    "mobiliteit, ontbijt, douchen"
+)
+
+
+def _whisper_prompt(planned_care_summary: str) -> str:
+    return f"{planned_care_summary} {_CARE_VOCABULARY_HINT}".strip()
+
 
 def _load_zorgmoment_or_404(client, zorgmoment_id: str) -> dict:
     """Load a zorgmoment row by id from Supabase, or raise 404 if no row
@@ -68,7 +80,7 @@ async def record_audio(zorgmoment_id: str, audio: UploadFile = File(...)):
     # Any status is eligible to record onto (a fresh zorgmoment always is) —
     # this call only exists to 404 on an unknown id rather than silently
     # no-op'ing, which used to be the behaviour here.
-    _load_zorgmoment_or_404(client, zorgmoment_id)
+    row = _load_zorgmoment_or_404(client, zorgmoment_id)
 
     if audio.size is not None and audio.size > MAX_AUDIO_BYTES:
         return JSONResponse(status_code=413, content={
@@ -84,8 +96,9 @@ async def record_audio(zorgmoment_id: str, audio: UploadFile = File(...)):
     audio_bytes = await audio.read()
 
     log_event(client, zorgmoment_id, "stt", "started")
+    prompt = _whisper_prompt(row.get("planned_care_summary") or "")
     try:
-        transcript = transcribe(audio_bytes, audio.filename or "note.webm")
+        transcript = transcribe(audio_bytes, audio.filename or "note.webm", prompt=prompt)
     except TranscriptionError as exc:
         log_event(client, zorgmoment_id, "stt", "failed", error_code="stt_failed",
                    error_message_safe=str(exc))

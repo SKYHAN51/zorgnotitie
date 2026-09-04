@@ -58,6 +58,25 @@ def test_record_endpoint_surfaces_stt_failure(fake_supabase):
     assert response.json()["audio_status"] == "failed"
 
 
+def test_record_endpoint_passes_care_context_as_whisper_prompt(fake_supabase):
+    """Whisper's prompt is a vocabulary hint, built from this zorgmoment's
+    planned_care_summary, so recognizably-spoken client/care terms transcribe
+    more accurately — it must never be used to invent transcript content."""
+    with patch("app.routes.zorgmomenten.get_client", return_value=fake_supabase), \
+         patch("app.routes.zorgmomenten.transcribe", return_value="Testnotitie.") as mock_transcribe:
+        create_resp = client.post("/zorgmomenten", json={
+            "demo_client_id": "client-1",
+            "planned_care_summary": "Ochtendzorg: hulp bij wassen en aankleden.",
+        })
+        zm_id = create_resp.json()["id"]
+        client.post(
+            f"/zorgmomenten/{zm_id}/record",
+            files={"audio": ("note.webm", b"fake-bytes", "audio/webm")},
+        )
+    _, kwargs = mock_transcribe.call_args
+    assert "Ochtendzorg: hulp bij wassen en aankleden." in kwargs["prompt"]
+
+
 def test_record_returns_404_on_unknown_id(fake_supabase):
     """C2/I1: recording onto an unknown zorgmoment id used to be a silent
     no-op (the update simply matched zero rows). It must now 404 instead."""
