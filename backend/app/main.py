@@ -18,7 +18,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://localhost:\d+$",  # tighten to the deployed frontend origin in Phase 7
+    allow_origins=["https://zorgnotitie.vercel.app"],
+    allow_origin_regex=r"^http://localhost:\d+$",  # keeps local dev working alongside the deployed origin above
     allow_methods=["*"],
     allow_headers=["*"],
 )
