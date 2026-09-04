@@ -29,7 +29,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="max-w-3xl mx-auto p-6 flex flex-col items-center justify-center gap-3 text-slate-400 min-h-[60vh]">
+      <main className="max-w-3xl mx-auto p-6 flex flex-col items-center justify-center gap-3 text-stone-400 min-h-[60vh]">
         <Loader2 className="animate-spin" size={28} />
         <p className="text-sm">Laden…</p>
       </main>
@@ -45,26 +45,26 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="max-w-3xl mx-auto p-6 pt-10">
-      <h1 className="text-2xl font-semibold tracking-tight mb-1">Teamoverzicht</h1>
-      <p className="text-sm text-slate-500 mb-6">Alleen door zorgmedewerkers gecontroleerde en opgeslagen zorgmomenten.</p>
+    <main className="max-w-3xl mx-auto px-6 pt-12 pb-16">
+      <h1 className="text-3xl font-bold tracking-tight text-stone-900 mb-1.5">Teamoverzicht</h1>
+      <p className="text-stone-500 mb-8">Alleen door zorgmedewerkers gecontroleerde en opgeslagen zorgmomenten.</p>
 
       {alerts.length > 0 && (
-        <section className="mb-6">
-          <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <section className="mb-8">
+          <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
             <AlertTriangle size={13} />
             Open aandachtspunten
           </h2>
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {alerts.map((a) => (
               <li
                 key={a.id}
-                className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-start gap-2.5"
+                className="bg-amber-50 rounded-2xl p-4 flex items-start gap-3"
               >
-                <AlertTriangle size={16} className="text-amber-500 mt-0.5 shrink-0" />
+                <AlertTriangle size={18} className="text-amber-500 mt-0.5 shrink-0" />
                 <div>
                   <span className="font-medium text-sm text-amber-900">{ALERT_LABELS[a.alert_type] ?? a.alert_type}</span>
-                  <p className="text-sm text-amber-800/80">{a.reason}</p>
+                  <p className="text-sm text-amber-800/80 mt-0.5">{a.reason}</p>
                 </div>
               </li>
             ))}
@@ -73,24 +73,24 @@ export default function DashboardPage() {
       )}
 
       <section>
-        <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Zorgmomenten</h2>
+        <h2 className="text-xs font-semibold text-stone-400 uppercase tracking-wide mb-3">Zorgmomenten</h2>
         {zorgmomenten.length === 0 ? (
-          <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center text-center text-slate-400">
-            <ClipboardList size={28} />
-            <p className="text-sm mt-2">Nog geen opgeslagen zorgmomenten.</p>
+          <div className="bg-white rounded-3xl shadow-softer p-12 flex flex-col items-center text-center text-stone-400">
+            <ClipboardList size={30} />
+            <p className="text-sm mt-3">Nog geen opgeslagen zorgmomenten.</p>
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {zorgmomenten.map((zm) => (
               <li key={zm.id}>
                 <Link
                   href={`/dashboard/${zm.id}`}
-                  className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-4 hover:border-teal-300 hover:shadow-sm transition-all"
+                  className="flex items-center justify-between gap-3 bg-white rounded-2xl p-5 shadow-softer hover:shadow-soft hover:-translate-y-0.5 transition-all"
                 >
-                  <span className="text-sm text-slate-700">
+                  <span className="text-sm text-stone-700">
                     {zm.actual_care_summary?.slice(0, 90) ?? "(geen samenvatting)"}
                   </span>
-                  <ChevronRight size={16} className="text-slate-300 shrink-0" />
+                  <ChevronRight size={16} className="text-sage-500 shrink-0" />
                 </Link>
               </li>
             ))}

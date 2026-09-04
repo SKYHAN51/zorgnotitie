@@ -45,7 +45,7 @@ export default function ReviewPage() {
 
   if (loading) {
     return (
-      <main className="max-w-xl mx-auto p-6 flex flex-col items-center justify-center gap-3 text-slate-400 min-h-[60vh]">
+      <main className="max-w-xl mx-auto p-6 flex flex-col items-center justify-center gap-3 text-stone-400 min-h-[60vh]">
         <Loader2 className="animate-spin" size={28} />
         <p className="text-sm">Bezig met concept maken…</p>
       </main>
@@ -62,38 +62,38 @@ export default function ReviewPage() {
   if (!draft) return null;
 
   return (
-    <main className="max-w-xl mx-auto p-6 pt-10">
-      <h1 className="text-2xl font-semibold tracking-tight mb-1">Controleren en opslaan</h1>
-      <p className="text-sm text-slate-500 flex items-center gap-1.5 mb-6">
-        <Sparkles size={14} className="text-teal-500" />
+    <main className="max-w-xl mx-auto px-6 pt-12 pb-16">
+      <h1 className="text-3xl font-bold tracking-tight text-stone-900 mb-1.5">Controleren en opslaan</h1>
+      <p className="text-stone-500 flex items-center gap-1.5 mb-8">
+        <Sparkles size={15} className="text-sage-500" />
         AI doet een voorstel. Jij controleert en beslist.
       </p>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 mb-5">
-        <span className="block text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">
+      <div className="bg-white rounded-3xl shadow-soft p-6 mb-6">
+        <span className="block text-xs font-semibold text-stone-400 uppercase tracking-wide mb-2">
           Ruwe transcriptie (audio-opname)
         </span>
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-600 whitespace-pre-wrap">
+        <div className="bg-cream-50 rounded-2xl p-4 text-sm text-stone-600 whitespace-pre-wrap leading-relaxed">
           {transcript || "(geen transcriptie beschikbaar)"}
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-5">
+      <div className="bg-white rounded-3xl shadow-soft p-6 space-y-6">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Uitgevoerde zorg</label>
+          <label className="block text-sm font-medium text-stone-600 mb-2">Uitgevoerde zorg</label>
           <textarea
-            className="border border-slate-300 rounded-lg p-3 w-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="border border-stone-200 rounded-xl p-3.5 w-full text-base bg-cream-50 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:border-sage-400"
             rows={3}
             value={draft.actual_care_summary}
             onChange={(e) => updateField("actual_care_summary", e.target.value)}
           />
         </div>
 
-        <div className="border-t border-slate-100 pt-4">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+        <div className="border-t border-stone-100 pt-6">
+          <label className="flex items-center gap-2.5 text-sm text-stone-700">
             <input
               type="checkbox"
-              className="w-4 h-4 rounded accent-teal-600"
+              className="w-4 h-4 rounded accent-sage-600"
               checked={draft.deviation_detected}
               onChange={(e) => updateField("deviation_detected", e.target.checked)}
             />
@@ -101,7 +101,7 @@ export default function ReviewPage() {
           </label>
           {draft.deviation_detected && (
             <input
-              className="border border-slate-300 rounded-lg p-2.5 w-full mt-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="border border-stone-200 rounded-xl p-3 w-full mt-2.5 text-base bg-cream-50 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:border-sage-400"
               value={draft.deviation_reason ?? ""}
               onChange={(e) => updateField("deviation_reason", e.target.value)}
               placeholder="Reden voor afwijking"
@@ -109,17 +109,17 @@ export default function ReviewPage() {
           )}
         </div>
 
-        <div className="border-t border-slate-100 pt-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Stemming</label>
+        <div className="border-t border-stone-100 pt-6">
+          <label className="block text-sm font-medium text-stone-600 mb-2">Stemming</label>
           <input
-            className="border border-slate-300 rounded-lg p-2.5 w-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="border border-stone-200 rounded-xl p-3 w-full text-base bg-cream-50 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:border-sage-400"
             value={draft.mood_observation}
             onChange={(e) => updateField("mood_observation", e.target.value)}
           />
-          <label className="flex items-center gap-2 text-sm text-slate-700 mt-2">
+          <label className="flex items-center gap-2.5 text-sm text-stone-700 mt-2.5">
             <input
               type="checkbox"
-              className="w-4 h-4 rounded accent-teal-600"
+              className="w-4 h-4 rounded accent-sage-600"
               checked={draft.mood_changed}
               onChange={(e) => updateField("mood_changed", e.target.checked)}
             />
@@ -127,17 +127,17 @@ export default function ReviewPage() {
           </label>
         </div>
 
-        <div className="border-t border-slate-100 pt-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Gedrag</label>
+        <div className="border-t border-stone-100 pt-6">
+          <label className="block text-sm font-medium text-stone-600 mb-2">Gedrag</label>
           <input
-            className="border border-slate-300 rounded-lg p-2.5 w-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            className="border border-stone-200 rounded-xl p-3 w-full text-base bg-cream-50 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:border-sage-400"
             value={draft.behaviour_observation}
             onChange={(e) => updateField("behaviour_observation", e.target.value)}
           />
-          <label className="flex items-center gap-2 text-sm text-slate-700 mt-2">
+          <label className="flex items-center gap-2.5 text-sm text-stone-700 mt-2.5">
             <input
               type="checkbox"
-              className="w-4 h-4 rounded accent-teal-600"
+              className="w-4 h-4 rounded accent-sage-600"
               checked={draft.behaviour_changed}
               onChange={(e) => updateField("behaviour_changed", e.target.checked)}
             />
@@ -156,7 +156,7 @@ export default function ReviewPage() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-medium px-5 py-2.5 rounded-lg mt-6 transition-colors"
+        className="inline-flex items-center gap-2 bg-sage-600 hover:bg-sage-700 disabled:opacity-60 text-white text-sm font-medium px-6 py-3 rounded-full mt-8 shadow-softer transition-colors"
       >
         {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
         {saving ? "Bezig met opslaan…" : "Opslaan"}
