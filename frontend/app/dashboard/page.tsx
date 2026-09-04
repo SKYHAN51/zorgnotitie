@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [zorgmomenten, setZorgmomenten] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     Promise.all([listReviewedZorgmomenten(), listOpenAlerts()])
@@ -21,10 +22,12 @@ export default function DashboardPage() {
         setZorgmomenten(zm);
         setAlerts(al);
       })
+      .catch((err) => setError(err instanceof Error ? err.message : "Kon overzicht niet laden."))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <main className="max-w-3xl mx-auto p-6">Laden…</main>;
+  if (error) return <main className="max-w-3xl mx-auto p-6 text-red-700">{error}</main>;
 
   return (
     <main className="max-w-3xl mx-auto p-6">

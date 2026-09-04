@@ -8,13 +8,17 @@ export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [draft, setDraft] = useState<ExtractionDraft | null>(null);
+  const [transcript, setTranscript] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     extractZorgmoment(id)
-      .then((res) => setDraft(res.extraction_json))
+      .then((res) => {
+        setDraft(res.extraction_json);
+        setTranscript(res.transcript);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -48,6 +52,11 @@ export default function ReviewPage() {
       <p className="text-sm text-slate-600 mb-4">
         AI doet een voorstel. Jij controleert en beslist.
       </p>
+
+      <label className="block text-sm font-medium mt-4">Ruwe transcriptie (audio-opname)</label>
+      <div className="border rounded p-2 w-full bg-slate-50 text-slate-700 whitespace-pre-wrap">
+        {transcript || "(geen transcriptie beschikbaar)"}
+      </div>
 
       <label className="block text-sm font-medium mt-4">Uitgevoerde zorg</label>
       <textarea

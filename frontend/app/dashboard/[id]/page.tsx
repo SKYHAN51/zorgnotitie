@@ -7,11 +7,15 @@ import { getZorgmomentDetail } from "@/lib/api";
 export default function ZorgmomentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [detail, setDetail] = useState<any>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getZorgmomentDetail(id).then(setDetail);
+    getZorgmomentDetail(id)
+      .then(setDetail)
+      .catch((err) => setError(err instanceof Error ? err.message : "Kon detail niet laden."));
   }, [id]);
 
+  if (error) return <main className="max-w-2xl mx-auto p-6 text-red-700">{error}</main>;
   if (!detail) return <main className="max-w-2xl mx-auto p-6">Laden…</main>;
 
   return (

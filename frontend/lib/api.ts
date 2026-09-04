@@ -48,7 +48,9 @@ export interface ExtractionDraft {
   behaviour_changed: boolean;
 }
 
-export async function extractZorgmoment(zorgmomentId: string): Promise<{ extraction_json: ExtractionDraft }> {
+export async function extractZorgmoment(
+  zorgmomentId: string
+): Promise<{ extraction_json: ExtractionDraft; transcript: string }> {
   const res = await fetch(`${API_URL}/zorgmomenten/${zorgmomentId}/extract`, { method: "POST" });
   const body = await res.json();
   // Flat JSONResponse body, same reasoning as uploadRecording above.
@@ -62,7 +64,17 @@ export async function saveZorgmoment(zorgmomentId: string, draft: ExtractionDraf
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...draft, reviewed_by: reviewedBy }),
   });
-  if (!res.ok) throw new Error("Opslaan mislukt.");
+  if (!res.ok) {
+    // Unlike every other endpoint in this file, /save's errors come from
+    // FastAPI's HTTPException(detail="...") — a plain string, not the flat
+    // JSONResponse({"message": ...}) shape the STT/extract endpoints use.
+    // FastAPI's default exception handler wraps that into {"detail": "..."},
+    // so THIS function must read body.detail, not body.message. Don't
+    // "fix" this to match the other functions — that would silently swap
+    // back to the generic fallback message for every 404/409 from /save.
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || "Opslaan mislukt.");
+  }
   return res.json();
 }
 
