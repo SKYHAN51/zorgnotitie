@@ -8,7 +8,7 @@ app = FastAPI(title="ZorgNotitie API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3003"],  # tighten to the deployed frontend origin in Phase 7
+    allow_origin_regex=r"^http://localhost:\d+$",  # tighten to the deployed frontend origin in Phase 7
     allow_methods=["*"],
     allow_headers=["*"],
 )
