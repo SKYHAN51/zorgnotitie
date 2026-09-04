@@ -8,7 +8,7 @@ def test_log_event_inserts_a_row(fake_supabase):
         stage="stt",
         status="succeeded",
     )
-    rows = fake_supabase.table("processing_events").execute().data
+    rows = fake_supabase.table("processing_events").select("*").execute().data
     assert len(rows) == 1
     assert rows[0]["zorgmoment_id"] == "abc-123"
     assert rows[0]["stage"] == "stt"
@@ -25,6 +25,6 @@ def test_log_event_records_error_fields(fake_supabase):
         error_code="invalid_json",
         error_message_safe="Extraction output did not match the required schema.",
     )
-    rows = fake_supabase.table("processing_events").execute().data
+    rows = fake_supabase.table("processing_events").select("*").execute().data
     assert rows[0]["status"] == "failed"
     assert rows[0]["error_code"] == "invalid_json"

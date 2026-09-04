@@ -14,18 +14,40 @@ class FakeTable:
     .update(fields).eq(field, value).execute() mutates matching rows in
     place — this distinction matters because production code must use
     .update() to modify an existing zorgmoment, never .insert() with an
-    existing id."""
+    existing id.
+
+    Regression note (finding C1, 2026-09-04 whole-branch review): this
+    fake used to let a bare `client.table(name).execute()` succeed for a
+    plain read. Real supabase-py's `client.table(name)` returns a
+    `SyncRequestBuilder`, which has NO `.execute()` method at all —
+    only `.select()` / `.insert()` / `.update()` / `.upsert()` /
+    `.delete()` return an object that has `.execute()`. Because the fake
+    was more permissive than the real client, every production read that
+    forgot `.select()` (see zorgmomenten.py, dashboard.py) still passed
+    against the fake and would have 500'd against a real Supabase
+    project. The fake now requires `.select()` (or `.insert()` /
+    `.update()`) to have been called before `.execute()` works, raising
+    AttributeError otherwise, so this exact bug class fails a test
+    immediately instead of only failing in production."""
     def __init__(self, store: dict, name: str):
+        self._name = name
         self._store = store.setdefault(name, [])
         self._pending_update: dict | None = None
         self._filter: tuple | None = None
+        self._executable = False  # set True by select()/insert()/update()/upsert()/delete()
+
+    def select(self, *_columns, **_kwargs):
+        self._executable = True
+        return self
 
     def insert(self, row: dict):
         self._store.append(row)
+        self._executable = True
         return self
 
     def update(self, fields: dict):
         self._pending_update = fields
+        self._executable = True
         return self
 
     def eq(self, field: str, value):
@@ -33,6 +55,14 @@ class FakeTable:
         return self
 
     def execute(self):
+        if not self._executable:
+            # Mirrors real supabase-py: SyncRequestBuilder (what
+            # client.table(...) returns) has no .execute() at all.
+            raise AttributeError(
+                f"'FakeTable' object for table '{self._name}' has no attribute "
+                "'execute' — call .select(), .insert(), .update(), .upsert(), "
+                "or .delete() first, same as the real supabase-py client."
+            )
         if self._pending_update is not None and self._filter is not None:
             field, value = self._filter
             matched = [r for r in self._store if r.get(field) == value]

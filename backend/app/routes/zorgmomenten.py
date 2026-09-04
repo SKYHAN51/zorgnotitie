@@ -13,6 +13,33 @@ from app.schemas import ExtractionDraft
 
 router = APIRouter()
 
+# A demo zorgmoment is a short spoken note, not a long recording — 10MB
+# comfortably covers several minutes of compressed webm/opus audio while
+# rejecting anything clearly wrong (e.g. an accidental video upload).
+MAX_AUDIO_BYTES = 10 * 1024 * 1024
+
+
+def _load_zorgmoment_or_404(client, zorgmoment_id: str) -> dict:
+    """Load a zorgmoment row by id from Supabase, or raise 404 if no row
+    with that id exists. Shared by every endpoint that operates on an
+    existing zorgmoment (record, extract, save) so an unknown id always
+    produces a clear 404 instead of a silent no-op or a KeyError."""
+    rows = client.table("zorgmomenten").select("*").execute().data
+    row = next((r for r in rows if r.get("id") == zorgmoment_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Zorgmoment niet gevonden.")
+    return row
+
+
+def _require(condition: bool, message: str) -> None:
+    """Raise 409 with a clear Dutch message when a precondition on a
+    zorgmoment's status isn't met. Used to guard extract/save so a stale
+    browser tab (e.g. the back-button after a save) can't silently
+    re-run extraction on an already-reviewed row or run extraction
+    before audio has actually been transcribed."""
+    if not condition:
+        raise HTTPException(status_code=409, detail=message)
+
 
 class CreateZorgmomentRequest(BaseModel):
     demo_client_id: str
@@ -38,6 +65,22 @@ def create_zorgmoment(body: CreateZorgmomentRequest):
 @router.post("/zorgmomenten/{zorgmoment_id}/record")
 async def record_audio(zorgmoment_id: str, audio: UploadFile = File(...)):
     client = get_client()
+    # Any status is eligible to record onto (a fresh zorgmoment always is) —
+    # this call only exists to 404 on an unknown id rather than silently
+    # no-op'ing, which used to be the behaviour here.
+    _load_zorgmoment_or_404(client, zorgmoment_id)
+
+    if audio.size is not None and audio.size > MAX_AUDIO_BYTES:
+        return JSONResponse(status_code=413, content={
+            "audio_status": "failed",
+            "message": "Audiobestand is te groot. Neem een kortere notitie op.",
+        })
+    if audio.content_type and not audio.content_type.startswith("audio/"):
+        return JSONResponse(status_code=415, content={
+            "audio_status": "failed",
+            "message": "Bestandstype wordt niet ondersteund. Neem audio op.",
+        })
+
     audio_bytes = await audio.read()
 
     log_event(client, zorgmoment_id, "stt", "started")
@@ -68,16 +111,22 @@ async def record_audio(zorgmoment_id: str, audio: UploadFile = File(...)):
 @router.get("/demo-clients")
 def list_demo_clients():
     client = get_client()
-    return client.table("demo_clients").execute().data
+    return client.table("demo_clients").select("*").execute().data
 
 
 @router.post("/zorgmomenten/{zorgmoment_id}/extract")
 def extract_zorgmoment(zorgmoment_id: str):
     client = get_client()
-    existing = client.table("zorgmomenten").execute().data
-    row = next((r for r in existing if r.get("id") == zorgmoment_id), None)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Zorgmoment niet gevonden.")
+    row = _load_zorgmoment_or_404(client, zorgmoment_id)
+    _require(
+        row.get("review_status") != "reviewed",
+        "Dit zorgmoment is al beoordeeld en opgeslagen; extractie kan niet opnieuw worden uitgevoerd.",
+    )
+    transcript = row.get("transcript")
+    _require(
+        row.get("audio_status") == "transcribed" and bool(transcript and transcript.strip()),
+        "Audio is nog niet getranscribeerd; extractie kan nog niet worden uitgevoerd.",
+    )
 
     log_event(client, zorgmoment_id, "extraction", "started")
     try:
@@ -99,7 +148,12 @@ def extract_zorgmoment(zorgmoment_id: str):
         "review_status": "needs_review",
         "extraction_json": extraction_json,
     }).eq("id", zorgmoment_id).execute()
-    return {"id": zorgmoment_id, "review_status": "needs_review", "extraction_json": extraction_json}
+    return {
+        "id": zorgmoment_id,
+        "review_status": "needs_review",
+        "extraction_json": extraction_json,
+        "transcript": row["transcript"],
+    }
 
 
 class SaveZorgmomentRequest(BaseModel):
@@ -116,12 +170,8 @@ class SaveZorgmomentRequest(BaseModel):
 @router.post("/zorgmomenten/{zorgmoment_id}/save")
 def save_zorgmoment(zorgmoment_id: str, body: SaveZorgmomentRequest):
     client = get_client()
-    existing = client.table("zorgmomenten").execute().data
-    row = next((r for r in existing if r.get("id") == zorgmoment_id), None)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Zorgmoment niet gevonden.")
-    if row.get("review_status") != "needs_review":
-        raise HTTPException(status_code=409, detail="Dit zorgmoment is niet klaar om op te slaan.")
+    row = _load_zorgmoment_or_404(client, zorgmoment_id)
+    _require(row.get("review_status") == "needs_review", "Dit zorgmoment is niet klaar om op te slaan.")
 
     before_json = row.get("extraction_json")
     after_json = body.model_dump()

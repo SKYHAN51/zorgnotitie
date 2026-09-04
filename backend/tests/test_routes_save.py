@@ -37,7 +37,7 @@ def test_save_writes_final_fields_from_human_approved_body(fake_supabase):
             "reviewed_by": "demo-zorgmedewerker",
         })
     assert response.status_code == 200
-    saved_rows = [r for r in fake_supabase.table("zorgmomenten").execute().data if r.get("review_status") == "reviewed"]
+    saved_rows = [r for r in fake_supabase.table("zorgmomenten").select("*").execute().data if r.get("review_status") == "reviewed"]
     assert len(saved_rows) == 1
     assert saved_rows[0]["actual_care_summary"].endswith("(bevestigd).")
 
@@ -52,7 +52,7 @@ def test_save_creates_alerts_matching_final_fields(fake_supabase):
             "behaviour_observation": "gedrag", "behaviour_changed": True,
             "reviewed_by": "demo-zorgmedewerker",
         })
-    alert_rows = fake_supabase.table("alerts").execute().data
+    alert_rows = fake_supabase.table("alerts").select("*").execute().data
     types = {a["alert_type"] for a in alert_rows}
     assert types == {"care_deviation", "mood_change", "behaviour_change"}
 
@@ -67,7 +67,7 @@ def test_save_writes_audit_log_with_before_and_after(fake_supabase):
             "behaviour_observation": "gedrag", "behaviour_changed": True,
             "reviewed_by": "demo-zorgmedewerker",
         })
-    audit_rows = fake_supabase.table("audit_log").execute().data
+    audit_rows = fake_supabase.table("audit_log").select("*").execute().data
     assert len(audit_rows) == 1
     assert audit_rows[0]["before_json"]["actual_care_summary"] == original["actual_care_summary"]
     assert audit_rows[0]["after_json"]["actual_care_summary"] == "GEWIJZIGD door zorgmedewerker"
@@ -87,7 +87,7 @@ def test_save_when_caregiver_clears_a_flagged_field_creates_no_alert_for_it(fake
             "behaviour_observation": "geen bijzonderheden", "behaviour_changed": False,
             "reviewed_by": "demo-zorgmedewerker",
         })
-    alert_rows = fake_supabase.table("alerts").execute().data
+    alert_rows = fake_supabase.table("alerts").select("*").execute().data
     assert alert_rows == []
 
 
@@ -107,5 +107,5 @@ def test_resaving_an_already_reviewed_zorgmoment_is_rejected(fake_supabase):
             "reviewed_by": "demo-zorgmedewerker",
         })
     assert response.status_code == 409
-    alert_rows = fake_supabase.table("alerts").execute().data
+    alert_rows = fake_supabase.table("alerts").select("*").execute().data
     assert alert_rows == []

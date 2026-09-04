@@ -1,7 +1,8 @@
 # backend/tests/test_routes_record.py
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
+from app.routes.zorgmomenten import MAX_AUDIO_BYTES
 
 client = TestClient(app)
 
@@ -55,6 +56,40 @@ def test_record_endpoint_surfaces_stt_failure(fake_supabase):
         )
     assert response.status_code == 422
     assert response.json()["audio_status"] == "failed"
+
+
+def test_record_returns_404_on_unknown_id(fake_supabase):
+    """C2/I1: recording onto an unknown zorgmoment id used to be a silent
+    no-op (the update simply matched zero rows). It must now 404 instead."""
+    with patch("app.routes.zorgmomenten.get_client", return_value=fake_supabase):
+        response = client.post(
+            "/zorgmomenten/does-not-exist/record",
+            files={"audio": ("note.webm", b"fake-bytes", "audio/webm")},
+        )
+    assert response.status_code == 404
+
+
+def test_record_rejects_oversized_audio_upload(fake_supabase):
+    """I4: an oversized upload must be rejected before the bytes are ever
+    read into memory. Uses a mocked UploadFile so the test doesn't need to
+    actually construct a >10MB payload."""
+    import asyncio
+    from app.routes.zorgmomenten import record_audio
+
+    fake_supabase.table("zorgmomenten").insert({
+        "id": "zm-1", "audio_status": "pending", "review_status": "processing",
+    }).execute()
+
+    fake_audio = MagicMock()
+    fake_audio.size = MAX_AUDIO_BYTES + 1
+    fake_audio.content_type = "audio/webm"
+    fake_audio.filename = "note.webm"
+
+    with patch("app.routes.zorgmomenten.get_client", return_value=fake_supabase):
+        response = asyncio.run(record_audio("zm-1", fake_audio))
+
+    assert response.status_code == 413
+    fake_audio.read.assert_not_called()
 
 
 def test_list_demo_clients_returns_seeded_rows(fake_supabase):
